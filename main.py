@@ -1,3 +1,4 @@
+from asyncio.tasks import wait
 import discord
 import epicgames
 import asyncio
@@ -10,6 +11,8 @@ client = discord.Client()
 @client.event
 async def on_ready():
     print('Logged in as {0.user}'.format(client))
+    update_free_games.start()
+    remind_free_games.start()
 
 @client.event
 async def on_message(message):
@@ -42,11 +45,41 @@ async def before_update_free_games():
     free games loop.
     '''
 
+    await wait_until_time(epicgames.THURSDAY)
+
+
+@tasks.loop(hours=24*7)
+async def remind_free_games():
+    '''
+    Sends a reminder to the update channel 24 hours before new games
+    are available for free on Epic Games.
+    '''
+
+    channel = client.get_channel(871698820046655548)
+    await channel.send("meow! don't forget to get this week's free games:")
+    await send_free_games(channel)
+
+
+@remind_free_games.before_loop
+async def before_remind_free_games():
+    '''
+    Waits until the first Wednesday at 6 PM to start the remind
+    free games loop.
+    '''
+
+    await wait_until_time(epicgames.WEDNESDAY)
+    
+
+async def wait_until_time(weekday):
+    '''
+    Waits until the given weekday at 6 PM and returns.
+    '''
+
     timezone = pytz.timezone('Asia/Jerusalem')
 
-    for _ in range(60*60*24*7): # Loop the entire week until the first Thursday at 6 PM.
+    for _ in range(60*60*24*7): # Loop the entire week until the given weekday at 6 PM.
         d = datetime.datetime.now(timezone)  
-        if d.hour == 18 and d.weekday() == epicgames.THURSDAY:
+        if d.hour == 18 and d.weekday() == weekday:
             return
         await asyncio.sleep(30) # Wait 30 seconds before looping again.
 
@@ -66,6 +99,7 @@ async def send_free_games(channel):
 
     for game in games:
         await channel.send(embed=get_game_embed(game))
+
 
 def get_game_embed(game):
     '''

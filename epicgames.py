@@ -5,6 +5,7 @@ import datetime
 FREE_GAMES_URL = 'https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=en-US&country=IL&allowCountries=IL'
 GAME_URL = 'https://www.epicgames.com/store/en-US/p/'
 THURSDAY = 3
+WEDNESDAY = 2
 
 class Game:
     def __init__(self, name, image):
