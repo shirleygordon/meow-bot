@@ -6,6 +6,7 @@ import asyncio
 import datetime
 import pytz
 from discord.ext import tasks
+from replit import db
 
 class MeowCommand:
     def __init__(self, name, description, function=None):
@@ -21,7 +22,7 @@ class MeowCommand:
 
     def get_function(self):
         return self._function
-        
+
 
 UPDATE = {
     'last': ['commands', 'help', 'update', 'set-update-channel'],
@@ -131,7 +132,22 @@ async def send_update(message):
 
 
 async def set_update_channel(message):
-    pass
+    '''
+    Sets the channel the command was sent in as the channel for
+    sending free games updates by adding the channel id to the database.
+
+    Parameters
+    ----------
+    message - discord.Message
+        Message containing the command.
+    '''
+
+    if 'update channels' not in db.keys():
+        db['update channels'] = {}
+    
+    db['update channels'][message.guild.id] = message.channel.id
+    
+    await message.channel.send('meow! channel successfully updated.')
 
 
 @tasks.loop(hours=24*7)
@@ -141,9 +157,14 @@ async def update_free_games():
     are available for free on Epic Games.
     '''
 
-    channel = client.get_channel(871698820046655548)
-    await channel.send('meow! new games available for free:')
-    await send_free_games(channel)
+    channels_to_update = {}
+    if 'update channels' in db.keys():
+        channels_to_update = db['update channels'].values()
+
+    for channel_id in channels_to_update:
+        channel = client.get_channel(channel_id)
+        await channel.send('meow! new games available for free:')
+        await send_free_games(channel)
 
 
 @update_free_games.before_loop
@@ -163,9 +184,14 @@ async def remind_free_games():
     are available for free on Epic Games.
     '''
 
-    channel = client.get_channel(871698820046655548)
-    await channel.send("meow! don't forget to get this week's free games:")
-    await send_free_games(channel)
+    channels_to_update = {}
+    if 'update channels' in db.keys():
+        channels_to_update = db['update channels'].values()
+
+    for channel_id in channels_to_update:
+        channel = client.get_channel(channel_id)
+        await channel.send("meow! don't forget to get this week's free games:")
+        await send_free_games(channel)
 
 
 @remind_free_games.before_loop
