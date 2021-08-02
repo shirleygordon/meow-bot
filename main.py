@@ -6,6 +6,23 @@ import datetime
 import pytz
 from discord.ext import tasks
 
+COMMANDS = {
+    'meow': 'replies with "meow".',
+    'free': 'sends the games which are currently free on epic games.',
+    'commands': "sends a list of the bot's commands.",
+    'help <command>': 'sends the description of the requested command.',
+    'update': 'sends a list of the commands added in the last update, and the commands to be added in the upcoming update.'
+}
+
+UPDATE = {
+    'last': {
+
+    },
+    'upcoming': {
+
+    }
+}
+
 client = discord.Client()
 
 @client.event
@@ -22,8 +39,15 @@ async def on_message(message):
     if message.content == 'meow':
         await message.channel.send('meow')
 
-    if message.content == 'meow free':
+    elif message.content == 'meow commands':
+        await message.channel.send(embed=get_commands())
+
+    elif message.content.startswith('meow help'):
+        await message.channel.send(embed=get_help(message.content.split()[-1]))
+
+    elif message.content == 'meow free':
         await send_free_games(message.channel)
+
 
 
 @tasks.loop(hours=24*7)
@@ -68,7 +92,7 @@ async def before_remind_free_games():
     '''
 
     await wait_until_time(epicgames.WEDNESDAY)
-    
+
 
 async def wait_until_time(weekday):
     '''
@@ -122,6 +146,60 @@ def get_game_embed(game):
     embed.set_image(url=game.get_image())
 
     return embed
+
+
+def get_commands():
+    '''
+    Returns a Discord embed containing the bot's command list.
+
+    Returns
+    -------
+    discord.Embed
+        Embed containing the bot's command list.
+    '''    
+    
+    commands_str = ''
+
+    for name, description in COMMANDS.items():
+        commands_str += '`meow {}` - {}\n\n'.format(name, description)
+
+    embed = discord.Embed()
+    embed.title = 'meow commands ♡'
+    embed.set_thumbnail(url='https://media2.giphy.com/media/6bXd6ZTYpZWrC/source.gif')
+    embed.description = '`'+ commands_str[6:] # Remove first meow.
+    embed.color = discord.Color.from_rgb(255, 232, 239)
+
+    return embed
+
+
+def get_help(command_name):
+    '''
+    Returns a Discord embed containing the requested command's description.
+    If the command doesn't exist, returns an error message.
+
+    Returns
+    -------
+    discord.Embed
+        Embed containing the requested command's description or an error message.
+    '''
+
+    command_name = command_name.lower()
+    embed = discord.Embed()
+    embed.set_thumbnail(url='https://66.media.tumblr.com/tumblr_maorfzn99Q1rfjowdo1_500.gif')
+    embed.color = discord.Color.from_rgb(255, 232, 239)
+
+    if command_name in COMMANDS.keys(): 
+        embed.title = 'meow ' + command_name
+        embed.description = COMMANDS[command_name]
+    
+    elif command_name == 'help':
+        embed.description = 'please enter a command name in the following format: `meow help <command>` to get information on the requested command.'
+    
+    else:
+        embed.description = "the command `{}` doesn't exist. for command suggestions message <@!536826296009883649>.".format(command_name)
+    
+    return embed
+
 
 # Get bot token from file and run the bot.
 with open('token.txt', 'r') as token_file:
