@@ -1,25 +1,35 @@
 from asyncio.tasks import wait
 import discord
+from discord.embeds import Embed
 import epicgames
 import asyncio
 import datetime
 import pytz
 from discord.ext import tasks
 
-COMMANDS = {
-    'meow': 'replies with "meow".',
-    'free': 'sends the games which are currently free on epic games.',
-    'commands': "sends a list of the bot's commands.",
-    'help <command>': 'sends the description of the requested command.',
-    'update': 'sends a list of the commands added in the last update, and the commands to be added in the upcoming update.'
-}
+class MeowCommand:
+    def __init__(self, name, description, function=None):
+        self._name = name
+        self._description = description
+        self._function = function
+
+    def get_name(self):
+        return self._name
+
+    def get_description(self):
+        return self._description
+
+    def get_function(self):
+        return self._function
+        
 
 UPDATE = {
-    'last': {
-
-    },
+    'last': ['commands', 'help', 'update', 'set-update-channel'],
     'upcoming': {
-
+        'rating <game-name>': 'sends the average rating of the requested game, based on information from different websites.',
+        'sale': 'sends a list of games which are currently on sale on different websites, like epic games, steam, origin, etc.',
+        'sale <website>': 'sends a list of games which are currently on sale on the requested website.',
+        'notify-sale <game-name>': 'sends a message when the requested game is on sale. also sends a private message to the user who ran the command.',
     }
 }
 
@@ -39,15 +49,89 @@ async def on_message(message):
     if message.content == 'meow':
         await message.channel.send('meow')
 
-    elif message.content == 'meow commands':
-        await message.channel.send(embed=get_commands())
+    elif message.content.startswith('meow '):
+        command = message.content[5:]
+        
+        for meow_command in COMMANDS:
+            if meow_command.get_name().split()[0] == command.lower().split()[0]:
+                await meow_command.get_function()(message)
+                break
 
-    elif message.content.startswith('meow help'):
-        await message.channel.send(embed=get_help(message.content.split()[-1]))
 
-    elif message.content == 'meow free':
-        await send_free_games(message.channel)
+async def send_commands(message):
+    '''
+    Sends a message containing the bot's command list.
 
+    Parameters
+    ----------
+    message - discord.Message
+        Message containing the command.
+    '''    
+    
+    commands_str = ''
+
+    for command in COMMANDS:
+        commands_str += '`meow {}` - {}\n\n'.format(command.get_name(), command.get_description())
+
+    embed = discord.Embed()
+    embed.title = 'meow commands ♡'
+    embed.set_thumbnail(url='https://media2.giphy.com/media/6bXd6ZTYpZWrC/source.gif')
+    embed.description = '`'+ commands_str[6:] # Remove first meow.
+    embed.color = discord.Color.from_rgb(255, 232, 239)
+
+    await message.channel.send(embed=embed)
+
+
+async def send_help(message):
+    '''
+    Sends a message containing the requested command's description.
+    If the command doesn't exist, sends an error message.
+
+    Parameters
+    ----------
+    message - discord.Message
+        Message containing the command.
+    '''
+
+    found = False
+    command_name = message.content.split()[-1].lower()
+    embed = discord.Embed()
+    embed.set_thumbnail(url='https://66.media.tumblr.com/tumblr_maorfzn99Q1rfjowdo1_500.gif')
+    embed.color = discord.Color.from_rgb(255, 232, 239)
+
+    for command in COMMANDS:
+        if command.get_name().split()[0] == command_name:
+            embed.title = 'meow ' + command.get_name()
+            embed.description = command.get_description()
+            found = True
+            break
+    
+    if not found:
+        embed.description = "the command `{}` doesn't exist. for command suggestions message <@!536826296009883649>.".format(command_name)
+    
+    await message.channel.send(embed=embed)
+
+
+async def send_update(message):
+    '''
+    Sends a message containing a list of the commands added in the last update,
+    and the commands to be added in the upcoming update.
+
+    Parameters
+    ----------
+    message - discord.Message
+        Message containing the command.
+    '''
+    
+    embed = discord.Embed()
+    embed.set_thumbnail(url='')
+    embed.color = discord.Color.from_rgb(255, 232, 239)
+
+    await message.channel.send(embed=embed)
+
+
+async def set_update_channel(message):
+    pass
 
 
 @tasks.loop(hours=24*7)
@@ -108,23 +192,6 @@ async def wait_until_time(weekday):
         await asyncio.sleep(30) # Wait 30 seconds before looping again.
 
 
-async def send_free_games(channel):
-    '''
-    Gets data of the games which are currently free and sends
-    it to the specified channel.
-
-    Parameters
-    ----------
-    channel : str
-        The channel id to send the message to.
-    '''
-
-    games = epicgames.get_free_games()
-
-    for game in games:
-        await channel.send(embed=get_game_embed(game))
-
-
 def get_game_embed(game):
     '''
     Returns a Discord embed for the given game object.
@@ -148,58 +215,30 @@ def get_game_embed(game):
     return embed
 
 
-def get_commands():
+async def send_free_games(message):
     '''
-    Returns a Discord embed containing the bot's command list.
+    Gets data of the games which are currently free and sends
+    it to the specified channel.
 
-    Returns
-    -------
-    discord.Embed
-        Embed containing the bot's command list.
-    '''    
-    
-    commands_str = ''
-
-    for name, description in COMMANDS.items():
-        commands_str += '`meow {}` - {}\n\n'.format(name, description)
-
-    embed = discord.Embed()
-    embed.title = 'meow commands ♡'
-    embed.set_thumbnail(url='https://media2.giphy.com/media/6bXd6ZTYpZWrC/source.gif')
-    embed.description = '`'+ commands_str[6:] # Remove first meow.
-    embed.color = discord.Color.from_rgb(255, 232, 239)
-
-    return embed
-
-
-def get_help(command_name):
-    '''
-    Returns a Discord embed containing the requested command's description.
-    If the command doesn't exist, returns an error message.
-
-    Returns
-    -------
-    discord.Embed
-        Embed containing the requested command's description or an error message.
+    Parameters
+    ----------
+    message - discord.Message
+        Message containing the command.
     '''
 
-    command_name = command_name.lower()
-    embed = discord.Embed()
-    embed.set_thumbnail(url='https://66.media.tumblr.com/tumblr_maorfzn99Q1rfjowdo1_500.gif')
-    embed.color = discord.Color.from_rgb(255, 232, 239)
+    games = epicgames.get_free_games()
 
-    if command_name in COMMANDS.keys(): 
-        embed.title = 'meow ' + command_name
-        embed.description = COMMANDS[command_name]
-    
-    elif command_name == 'help':
-        embed.description = 'please enter a command name in the following format: `meow help <command>` to get information on the requested command.'
-    
-    else:
-        embed.description = "the command `{}` doesn't exist. for command suggestions message <@!536826296009883649>.".format(command_name)
-    
-    return embed
+    for game in games:
+        await message.channel.send(embed=get_game_embed(game))
 
+COMMANDS = [
+    MeowCommand('meow', 'replies with "meow".'),   
+    MeowCommand('commands', "sends a list of the bot's commands.", send_commands),
+    MeowCommand('help <command>', 'sends the description of the requested command.', send_help),
+    MeowCommand('update', 'sends a list of the commands added in the last update, and the commands to be added in the upcoming update.', send_update),
+    MeowCommand('set-update-channel', 'sets the channel the command was sent in as the channel for sending free games updates.', set_update_channel),
+    MeowCommand('free', 'sends the games which are currently free on epic games.', send_free_games),
+]
 
 # Get bot token from file and run the bot.
 with open('token.txt', 'r') as token_file:
