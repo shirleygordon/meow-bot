@@ -1,12 +1,12 @@
-from asyncio.tasks import wait
+import os
 import discord
-from discord.embeds import Embed
 import epicgames
 import asyncio
 import datetime
 import pytz
 from discord.ext import tasks
 from replit import db
+from keep_alive import keep_alive
 
 class MeowCommand:
     def __init__(self, name, description, function=None):
@@ -57,7 +57,7 @@ async def on_message(message):
             if meow_command.get_name().split()[0] == command.lower().split()[0]:
                 await meow_command.get_function()(message)
                 break
-
+    
 
 async def send_commands(message):
     '''
@@ -124,9 +124,21 @@ async def send_update(message):
         Message containing the command.
     '''
     
+    commands_str = '***last added commands:***\n\n'
+
+    for command in UPDATE['last']:
+        commands_str += '`meow {}`, '.format(command)
+
+    commands_str = commands_str[:-2] # Remove last comma and space
+    commands_str += '\n\n***upcoming commands:***\n\n'
+
+    for name, description in UPDATE['upcoming'].items():
+        commands_str += '`meow {}` - {}\n\n'.format(name, description)
+
     embed = discord.Embed()
-    embed.set_thumbnail(url='')
+    embed.set_thumbnail(url='https://i.pinimg.com/originals/56/7a/09/567a0964671de5b98b70583fe81ae5b0.gif')
     embed.color = discord.Color.from_rgb(255, 232, 239)
+    embed.description = commands_str
 
     await message.channel.send(embed=embed)
 
@@ -147,7 +159,7 @@ async def set_update_channel(message):
     
     db['update channels'][message.guild.id] = message.channel.id
     
-    await message.channel.send('meow! channel successfully updated.')
+    await message.channel.send('meow! channel successfully updated.') 
 
 
 @tasks.loop(hours=24*7)
@@ -257,6 +269,7 @@ async def send_free_games(message):
     for game in games:
         await message.channel.send(embed=get_game_embed(game))
 
+
 COMMANDS = [
     MeowCommand('meow', 'replies with "meow".'),   
     MeowCommand('commands', "sends a list of the bot's commands.", send_commands),
@@ -266,8 +279,5 @@ COMMANDS = [
     MeowCommand('free', 'sends the games which are currently free on epic games.', send_free_games),
 ]
 
-# Get bot token from file and run the bot.
-with open('token.txt', 'r') as token_file:
-    token = token_file.read()
-
-client.run(token)
+keep_alive()
+client.run(os.environ['bot_token'])
