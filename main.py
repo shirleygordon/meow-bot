@@ -1,6 +1,6 @@
 import os
 import discord
-import epicgames
+import games
 import asyncio
 import datetime
 import pytz
@@ -25,14 +25,19 @@ class MeowCommand:
 
 
 UPDATE = {
-    'last': ['commands', 'help', 'update', 'set-update-channel'],
+    'last': ['commands', 'help', 'update', 'set-update-channel', 'rating'],
     'upcoming': {
-        'rating <game-name>': 'sends the average rating of the requested game, based on information from different websites.',
         'sale': 'sends a list of games which are currently on sale on different websites, like epic games, steam, origin, etc.',
         'sale <website>': 'sends a list of games which are currently on sale on the requested website.',
         'notify-sale <game-name>': 'sends a message when the requested game is on sale. also sends a private message to the user who ran the command.',
     }
 }
+
+GAME_NAME_ACRONYMS = {
+    'lol': 'League of Legends',
+    'cod': 'Call of Duty'
+}
+
 
 client = discord.Client()
 
@@ -186,7 +191,7 @@ async def before_update_free_games():
     free games loop.
     '''
 
-    await wait_until_time(epicgames.THURSDAY)
+    await wait_until_time(games.THURSDAY)
 
 
 @tasks.loop(hours=24*7)
@@ -213,7 +218,7 @@ async def before_remind_free_games():
     free games loop.
     '''
 
-    await wait_until_time(epicgames.WEDNESDAY)
+    await wait_until_time(games.WEDNESDAY)
 
 
 async def wait_until_time(weekday):
@@ -264,10 +269,42 @@ async def send_free_games(message):
         Message containing the command.
     '''
 
-    games = epicgames.get_free_games()
+    games = games.get_free_games()
 
     for game in games:
         await message.channel.send(embed=get_game_embed(game))
+
+
+async def send_rating(message):
+    '''
+    Gets a game's rating and sends it to the channel.
+
+    Parameters
+    ----------
+    message - discord.Message
+        Message containing the command.
+    '''
+
+    embed = discord.Embed()
+    embed.color = discord.Color.from_rgb(255, 232, 239)
+
+    game_name = ' '.join(message.content.split()[2:]).lower()
+
+    if game_name in GAME_NAME_ACRONYMS:
+        game_name = GAME_NAME_ACRONYMS[game_name]
+
+    try:
+        game = games.get_rating(game_name)
+    except games.GameNotFoundException as e:
+        embed.set_thumbnail(url='https://lh6.googleusercontent.com/proxy/kdCQjGnPZzMTGOkwfVuecWA8KxN9iQZn9IVx85oI_Y-p3RsR2jRwUk0J3-_zwOpbZ4QEWi9RYZUOUVELKBzbc4EidWSNjzBiMVVn=w1200-h630-p-k-no-nu')
+        embed.title = str(e)
+    else:
+        embed.title = game.get_name()
+        embed.url = game.get_url()
+        embed.set_image(url=game.get_image())
+        embed.description = "the game's rating is **{}/100.**".format(game.get_rating())
+
+    await message.channel.send(embed=embed)
 
 
 COMMANDS = [
@@ -277,6 +314,7 @@ COMMANDS = [
     MeowCommand('update', 'sends a list of the commands added in the last update, and the commands to be added in the upcoming update.', send_update),
     MeowCommand('set-update-channel', 'sets the channel the command was sent in as the channel for sending free games updates.', set_update_channel),
     MeowCommand('free', 'sends the games which are currently free on epic games.', send_free_games),
+    MeowCommand('rating <game-name>', 'sends the rating of the requested game, based on information from OpenCritic.', send_rating),
 ]
 
 keep_alive()
