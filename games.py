@@ -1,6 +1,7 @@
 import requests
 import json
 import datetime
+import pytz
 import string
 from serpapi import GoogleSearch
 
@@ -44,19 +45,19 @@ def get_game_url(name):
     return GAME_URL + name.lower().replace(' ', '-')
 
 def get_last_new_games_date():
-    todays_date = datetime.datetime.now()
+    timezone = pytz.timezone('Asia/Jerusalem')
+    date = datetime.datetime.now(timezone)
 
-    if todays_date.weekday() == THURSDAY and todays_date.hour > 18:
-            return datetime.date.today()
+    if date.weekday() == THURSDAY and date.hour > 18:
+            return date.date()
 
     else:
-        date = datetime.datetime.today()
-
-        if date.weekday() == THURSDAY:
+        if date.date.weekday() == THURSDAY:
             date -= datetime.timedelta(days=1)
 
         while date.weekday() != THURSDAY:            
             date -= datetime.timedelta(days=1)
+
         return date.date()
 
 def get_free_games():
@@ -65,8 +66,12 @@ def get_free_games():
     games_json = json.loads(games_json)['data']['Catalog']['searchStore']['elements']
 
     for game in games_json:
-        if game['effectiveDate'].startswith(str(get_last_new_games_date())):
-            games.append(Game(game['title'], game['keyImages'][0]['url']))
+        if(game['promotions'] is not None):
+            if(len(game['promotions']['promotionalOffers']) > 0):
+                start_date = game['promotions']['promotionalOffers'][0]['promotionalOffers'][0]['startDate']
+
+                if(start_date.startswith(str(get_last_new_games_date()))):
+                    games.append(Game(game['title'], game['keyImages'][0]['url']))
 
     return games
 
@@ -136,7 +141,7 @@ def get_rating(game_name):
 
     
 def main():
-    get_rating('fortnite')
+    get_free_games()
 
 if __name__ == "__main__":
     main()

@@ -55,6 +55,9 @@ async def on_message(message):
     if message.content == 'meow':
         await message.channel.send('meow')
 
+    elif message.content == 'woof':
+        await message.channel.send('MEOW!')
+
     elif message.content.startswith('meow '):
         command = message.content[5:]
         
@@ -254,6 +257,7 @@ def get_game_embed(game):
     embed.title = game.get_name()
     embed.url = game.get_url()
     embed.set_image(url=game.get_image())
+    embed.color = discord.Color.from_rgb(255, 232, 239)
 
     return embed
 
@@ -269,9 +273,9 @@ async def send_free_games(message):
         Message containing the command.
     '''
 
-    games = games.get_free_games()
+    games_list = games.get_free_games()
 
-    for game in games:
+    for game in games_list:
         await message.channel.send(embed=get_game_embed(game))
 
 
