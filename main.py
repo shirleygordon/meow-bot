@@ -184,7 +184,7 @@ async def update_free_games():
     for channel_id in channels_to_update:
         channel = client.get_channel(channel_id)
         await channel.send('meow! new games available for free:')
-        await send_free_games(channel)
+        await send_free_games(None, channel)
 
 
 @update_free_games.before_loop
@@ -211,7 +211,7 @@ async def remind_free_games():
     for channel_id in channels_to_update:
         channel = client.get_channel(channel_id)
         await channel.send("meow! don't forget to get this week's free games:")
-        await send_free_games(channel)
+        await send_free_games(None, channel)
 
 
 @remind_free_games.before_loop
@@ -262,7 +262,7 @@ def get_game_embed(game):
     return embed
 
 
-async def send_free_games(message):
+async def send_free_games(message, channel=None):
     '''
     Gets data of the games which are currently free and sends
     it to the specified channel.
@@ -276,7 +276,10 @@ async def send_free_games(message):
     games_list = games.get_free_games()
 
     for game in games_list:
-        await message.channel.send(embed=get_game_embed(game))
+        if message is not None:
+            await message.channel.send(embed=get_game_embed(game))
+        elif channel is not None:
+            await channel.send(embed=get_game_embed(game))
 
 
 async def send_rating(message):
@@ -311,6 +314,42 @@ async def send_rating(message):
     await message.channel.send(embed=embed)
 
 
+async def send_sale(message):
+    '''
+    Sends a list of games which are currently on sale on different websites,
+    like epic games, steam, origin, etc.
+
+    Parameters
+    ----------
+    message - discord.Message
+        Message containing the command.
+    '''
+
+    embed = discord.Embed()
+    embed.color = discord.Color.from_rgb(255, 232, 239)
+
+    num = message.content.split()[-1]
+    
+    if(num.isnumeric()):
+        if(int(num) <= 15):
+            games_dict = games.get_sale(int(num))
+        else:
+            games_dict = games.get_sale(15)
+    else:
+        games_dict = games.get_sale(5)
+
+    for website, games_list in games_dict.items():
+        await message.channel.send('**games on sale on {}:**'.format(website))
+        
+        for game in games_list:
+            embed.title = game.get_name()
+            embed.url = game.get_url()
+            embed.set_thumbnail(url=game.get_image())
+            embed.description = '~~{}~~  {}  **{}**'.format(game.get_original_price(), game.get_current_price(), game.get_discount_pct())
+
+            await message.channel.send(embed=embed)
+
+
 COMMANDS = [
     MeowCommand('meow', 'replies with "meow".'),   
     MeowCommand('commands', "sends a list of the bot's commands.", send_commands),
@@ -319,6 +358,7 @@ COMMANDS = [
     MeowCommand('set-update-channel', 'sets the channel the command was sent in as the channel for sending free games updates.', set_update_channel),
     MeowCommand('free', 'sends the games which are currently free on epic games.', send_free_games),
     MeowCommand('rating <game-name>', 'sends the rating of the requested game, based on information from OpenCritic.', send_rating),
+    MeowCommand('sale', 'sends a list of games which are currently on sale on different websites, like epic games, steam, origin, etc.', send_sale)
 ]
 
 keep_alive()

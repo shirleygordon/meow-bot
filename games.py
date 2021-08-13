@@ -4,6 +4,7 @@ import datetime
 import pytz
 import string
 from serpapi import GoogleSearch
+import bs4
 
 
 FREE_GAMES_URL = 'https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=en-US&country=IL&allowCountries=IL'
@@ -12,16 +13,14 @@ THURSDAY = 3
 WEDNESDAY = 2
 
 class Game:
-    def __init__(self, name, image, url='', rating=None):
+    def __init__(self, name, image, url='', rating=None, original_price=None, current_price=None, discount_pct=None):
         self._name = name
         self._image = image
-
-        if url == '':
-            self._url = get_game_url(name)
-        else:
-            self._url = url
-            
+        self._url = url
         self._rating = rating
+        self._original_price = original_price
+        self._current_price = current_price
+        self._discount_pct = discount_pct
 
     def get_name(self):
         return self._name
@@ -34,6 +33,15 @@ class Game:
 
     def get_rating(self):
         return self._rating
+
+    def get_original_price(self):
+        return self._original_price
+
+    def get_current_price(self):
+        return self._current_price
+
+    def get_discount_pct(self):
+        return self._discount_pct
 
 
 class GameNotFoundException(Exception):
@@ -48,7 +56,7 @@ def get_last_new_games_date():
     timezone = pytz.timezone('Asia/Jerusalem')
     date = datetime.datetime.now(timezone)
 
-    if date.weekday() == THURSDAY and date.hour > 18:
+    if date.weekday() == THURSDAY and date.hour >= 18:
             return date.date()
 
     else:
@@ -71,7 +79,7 @@ def get_free_games():
                 start_date = game['promotions']['promotionalOffers'][0]['promotionalOffers'][0]['startDate']
 
                 if(start_date.startswith(str(get_last_new_games_date()))):
-                    games.append(Game(game['title'], game['keyImages'][0]['url']))
+                    games.append(Game(game['title'], game['keyImages'][0]['url'], get_game_url(game['title'])))
 
     return games
 
@@ -139,9 +147,50 @@ def get_rating(game_name):
     else:
             raise GameNotFoundException(game_name) 
 
+
+def get_sale(num):
+    '''
+    Returns a dictionary containing website names as keys and lists of game objects
+    as values, where the games are discounted games on each website.
+
+    Parameters
+    ----------
+    num - int
+        The number of discounted games to fetch from each website.
+
+    Returns
+    -------
+    dict - string, Game
+        Dictionary containing website names as keys and lists of game objects as values.
+    '''
+
+    resp_dict = {'steam': [], 'origin': [], 'epic': []}
+    i = 0
+
+    # Get games on sale on Steam.
+    resp = requests.get('https://store.steampowered.com/specials').text
+    soup = bs4.BeautifulSoup(resp, 'lxml')
+    top_sellers = soup.find(id='TopSellersRows')
+    top_sellers = top_sellers.find_all('a')
+
+    for game in top_sellers:
+        if i == num:
+            break
+        name = game.find(class_='tab_item_name').text
+        image = game.find('img')['src']
+        url = game['href']
+        discount_pct = game.find(class_='discount_pct').text
+        original_price = game.find(class_='discount_original_price').text
+        current_price = game.find(class_='discount_final_price').text
+
+        resp_dict['steam'].append(Game(name, image, url, original_price=original_price, current_price=current_price, discount_pct=discount_pct))
+        i += 1    
+
+    return resp_dict
+
     
 def main():
-    get_free_games()
+    get_sale()
 
 if __name__ == "__main__":
     main()
