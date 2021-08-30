@@ -132,7 +132,7 @@ def get_rating(game_name):
             params = {
                 'engine': 'google',
                 'q': game_name,
-                'api_key': '10a03c0cf64d5c15db942aacd7b3a194ea91bee5759cc5dbb740540c36aa9ce8',
+                'api_key': RAPID_API_KEY,
                 'num': 1,
             }
 
