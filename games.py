@@ -122,7 +122,7 @@ def get_rating(game_name):
 
             headers = {
                 'x-rapidapi-host': 'bing-image-search1.p.rapidapi.com',
-                'X-RapidAPI-Key': 'caf6f1e010mshdc9135b118ee85dp109fb2jsn52f824dbb5ef'
+                'X-RapidAPI-Key': X_RAPID_API_KEY
             }
 
             resp = requests.get(image_search_url, headers=headers, params=querystring).text
